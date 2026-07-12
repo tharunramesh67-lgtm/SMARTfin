@@ -1,0 +1,102 @@
+# FinCalc Implementation Plan
+
+FinCalc is a full-stack financial calculator suite and daily income/expense tracker. This plan details the architecture, page flows, data schema, and development workflow.
+
+---
+
+## Architecture & Directory Structure
+
+To separate concerns cleanly, we will structure the repository into `/client` and `/server`:
+
+```
+/ (root)
+├── package.json              # Runs dev/build command concurrently
+├── client/                   # Vite + React app
+│   ├── src/
+│   │   ├── components/       # Shared & calculator-specific components
+│   │   ├── pages/            # Home, Calculators, Tracker, Dashboard, History, Login, Signup
+│   │   ├── lib/              # Supabase JS client
+│   │   ├── contexts/         # AuthContext (state, profiles, hooks)
+│   │   ├── index.css         # Styling, premium dark/light themes
+│   │   └── App.jsx           # Main router & theme provider
+│   ├── vite.config.js
+│   └── package.json
+└── server/                   # Node.js + Express API
+    ├── server.js             # Main server logic with Supabase Service Role Key integration
+    └── package.json
+```
+
+---
+
+## Database Schema (Supabase Postgres)
+
+We will configure two main tables on Supabase with RLS enabled:
+
+### `calculations`
+Stores saved calculation logs for registered users.
+- `id`: `uuid` PRIMARY KEY DEFAULT `gen_random_uuid()`
+- `user_id`: `uuid` REFERENCES `auth.users` ON DELETE CASCADE NOT NULL
+- `type`: `text` NOT NULL (e.g., 'emi', 'sip', 'compound', 'simple', 'amortization', 'retirement')
+- `inputs`: `jsonb` NOT NULL (e.g., principal, interest rate, duration)
+- `result`: `jsonb` NOT NULL (e.g., calculated values, monthly breakdowns)
+- `created_at`: `timestamp with time zone` DEFAULT `now()`
+
+### `transactions`
+Stores daily income and expense entries.
+- `id`: `uuid` PRIMARY KEY DEFAULT `gen_random_uuid()`
+- `user_id`: `uuid` REFERENCES `auth.users` ON DELETE CASCADE NOT NULL
+- `type`: `text` CHECK (`type` IN ('income', 'expense')) NOT NULL
+- `category`: `text` NOT NULL
+- `amount`: `numeric` NOT NULL
+- `note`: `text`
+- `date`: `date` NOT NULL DEFAULT `CURRENT_DATE`
+- `created_at`: `timestamp with time zone` DEFAULT `now()`
+
+---
+
+## Page & Tab Flow
+
+We will structure the main navigation into five primary pages/tabs:
+1. **Home**: High-torque welcome hub presenting the features, quick-start shortcuts, and current status.
+2. **Calculators**: Grid of the 6 core calculators (EMI, SIP, Compound, Simple, Amortization, Goal Planner).
+3. **Tracker**: Personal transaction log. Allows adding/editing/deleting transactions, custom sorting/filtering, and exporting to CSV.
+4. **Dashboard**: Financial analytics center. Visual metrics showing balance, monthly income vs expense, category breakdown (Donut chart), and income vs expense trends (Bar chart).
+5. **History**: Persistent log of all calculations saved by the user (if logged in). Allows viewing details and reloading them into calculators.
+
+---
+
+## Proposed Changes
+
+### Database Setup
+#### [MODIFY] [supabase_schema.sql](file:///c:/Users/tharu/OneDrive/Attachments/Desktop/SMARTfin/supabase_schema.sql)
+We will rewrite or supplement the schema to define the tables `calculations` and `transactions` exactly as requested, and setup their respective RLS policies.
+
+### Client Scaffolding & Setup
+#### [NEW] [client/package.json](file:///c:/Users/tharu/OneDrive/Attachments/Desktop/SMARTfin/client/package.json)
+We will move the current package dependencies into `/client` and add tailwind CSS / Recharts.
+#### [NEW] [client/src/lib/supabase.js](file:///c:/Users/tharu/OneDrive/Attachments/Desktop/SMARTfin/client/src/lib/supabase.js)
+Establish Supabase client with Client URL & Anon Key.
+
+### Server Scaffolding
+#### [NEW] [server/server.js](file:///c:/Users/tharu/OneDrive/Attachments/Desktop/SMARTfin/server/server.js)
+Setup Node.js Express server to handle privileged operations or admin analytics with Supabase Service Role Key.
+
+### Core UI Modules
+- **Calculators Components**: Create reusable input configurations and charts (using Recharts).
+- **Tracker Component**: Complete with CSV download and transaction CRUD.
+- **Light/Dark Theme Toggle**: Premium dark mode configuration.
+
+---
+
+## Verification Plan
+
+### Automated Verification
+- Run `npm run build` inside client to verify production compile.
+- Test endpoint reachability of `/server` using fetch/axios tests.
+
+### Manual / Visual Verification
+We will use the **browser subagent** to test the frontend UI under three viewport widths:
+- **Mobile**: 375px (checking hamburger nav, stacked cards).
+- **Tablet**: 768px (checking grid responsiveness).
+- **Desktop**: 1440px (checking full layouts, charts, and tables).
+- Verification of CSV export downloads.

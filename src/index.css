@@ -1,0 +1,265 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Slab:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Roboto Slab', 'Inter', 'sans-serif';
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  
+  --radius-xl: var(--radius);
+  --color-border-outline: var(--border-outline);
+}
+
+:root {
+  /* Premium Dark Theme */
+  --background: #020617;
+  --foreground: #f8fafc;
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  
+  --primary: #facc15;
+  --primary-foreground: #000000;
+  
+  --secondary: #fb923c;
+  --secondary-foreground: #000000;
+  
+  --tertiary: #a855f7;
+  --tertiary-foreground: #ffffff;
+  
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  
+  --accent: #facc15;
+  --accent-foreground: #000000;
+  
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  
+  --success: #22c55e;
+  
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.05);
+  --ring: #facc15;
+  --radius: 0px;
+
+  /* Retro Brick System */
+  --border-outline: #000000;
+  --brick-shadow: 4px 4px 0px 0px #000000;
+  --brick-shadow-sm: 2px 2px 0px 0px #000000;
+  --brick-shadow-lg: 8px 8px 0px 0px #000000;
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  html {
+    min-height: 100%;
+  }
+  body {
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+    @apply font-sans antialiased;
+  }
+  #root {
+    min-height: 100%;
+  }
+  * {
+    border-color: var(--border);
+  }
+  ::selection {
+    background-color: rgba(250, 204, 21, 0.3);
+    color: #facc15;
+  }
+}
+
+/* ─── Utilities must come BEFORE components so @apply can reference them ─── */
+@layer utilities {
+  .stud-grid {
+    background-image: radial-gradient(var(--border-outline) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-position: 12px 12px;
+  }
+
+  .bg-mesh {
+    background-color: #020617;
+    background-image:
+      radial-gradient(at 0% 0%, #0f172a 0, transparent 50%),
+      radial-gradient(at 50% 0%, #1e293b 0, transparent 50%);
+  }
+
+  .border-thick {
+    border-width: 4px !important;
+    border-style: solid !important;
+    border-color: var(--border-outline) !important;
+  }
+
+  .border-b-thick {
+    border-bottom-width: 4px !important;
+    border-bottom-style: solid !important;
+    border-bottom-color: var(--border-outline) !important;
+  }
+
+  .border-t-thick {
+    border-top-width: 4px !important;
+    border-top-style: solid !important;
+    border-top-color: var(--border-outline) !important;
+  }
+
+  .border-l-thick {
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
+    border-left-color: var(--border-outline) !important;
+  }
+
+  .border-r-thick {
+    border-right-width: 4px !important;
+    border-right-style: solid !important;
+    border-right-color: var(--border-outline) !important;
+  }
+
+  .border-standard {
+    border: 2px solid var(--border-outline);
+  }
+
+  .border-b-standard {
+    border-bottom: 2px solid var(--border-outline);
+  }
+
+  .border-t-standard {
+    border-top: 2px solid var(--border-outline);
+  }
+
+  .border-l-standard {
+    border-left: 2px solid var(--border-outline);
+  }
+
+  .border-r-standard {
+    border-right: 2px solid var(--border-outline);
+  }
+
+  .brick-shadow {
+    box-shadow: var(--brick-shadow) !important;
+  }
+
+  .brick-shadow-lg {
+    box-shadow: var(--brick-shadow-lg) !important;
+  }
+
+  .brick-shadow-sm {
+    box-shadow: var(--brick-shadow-sm) !important;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+  }
+
+  .brick-loader {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border-outline);
+    background-color: var(--primary);
+    box-shadow: var(--brick-shadow-sm);
+    animation: brick-spin 1.2s infinite steps(4);
+  }
+
+  @keyframes brick-spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+}
+
+/* ─── Components can safely @apply the utilities defined above ─── */
+@layer components {
+  .stat-card {
+    background: var(--card);
+    border: 4px solid var(--border-outline);
+    border-radius: 0px;
+    box-shadow: var(--brick-shadow);
+    @apply p-6 flex flex-col gap-1 relative overflow-hidden transition-all duration-300 hover:-translate-y-1;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border: 4px solid var(--border-outline);
+    box-shadow: var(--brick-shadow-sm);
+    @apply px-5 py-2.5 font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded-none transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-secondary {
+    background: var(--background);
+    color: var(--foreground);
+    border: 4px solid var(--border-outline);
+    box-shadow: var(--brick-shadow-sm);
+    @apply px-5 py-2.5 font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded-none transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-accent {
+    background: var(--tertiary);
+    color: var(--tertiary-foreground);
+    @apply px-5 py-2.5 font-black uppercase tracking-widest flex items-center justify-center gap-2 rounded-sm transition-all duration-200 hover:-translate-y-0.5;
+  }
+
+  .input-field {
+    background-color: var(--background);
+    border: 4px solid var(--border-outline);
+    @apply px-4 py-3 outline-none transition-all text-white rounded-none placeholder:text-slate-500;
+  }
+  .input-field:focus {
+    box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.2);
+  }
+}
+
+/* ─── Custom Scrollbar ─── */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border: 2px solid var(--border-outline);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* ─── Recharts Overrides ─── */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-dasharray: 4 4;
+}
+.recharts-text {
+  fill: #94a3b8 !important;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+}
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: #0f172a !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+}

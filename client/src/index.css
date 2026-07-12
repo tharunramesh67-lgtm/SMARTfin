@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    @apply antialiased transition-colors duration-300;
+  }
+}
+
+/* Glassmorphism Cards */
+.glass-panel {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  border-radius: 1rem;
+  box-shadow: 0 20px 25px -5px rgba(226, 232, 240, 0.2), 0 8px 10px -6px rgba(226, 232, 240, 0.2);
+}
+
+.dark .glass-panel {
+  background-color: rgba(15, 23, 42, 0.8);
+  border-color: rgba(30, 41, 59, 0.5);
+  box-shadow: none;
+}
+
+.glass-panel-interactive {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  border-radius: 1rem;
+  box-shadow: 0 20px 25px -5px rgba(226, 232, 240, 0.2), 0 8px 10px -6px rgba(226, 232, 240, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel-interactive:hover {
+  border-color: rgba(203, 213, 225, 0.8);
+  transform: translateY(-2px);
+}
+
+.dark .glass-panel-interactive {
+  background-color: rgba(15, 23, 42, 0.8);
+  border-color: rgba(30, 41, 59, 0.5);
+  box-shadow: none;
+}
+
+.dark .glass-panel-interactive:hover {
+  border-color: rgba(71, 85, 105, 0.8);
+}
+
+/* Custom Gradients */
+.gradient-primary {
+  @apply bg-gradient-to-tr from-slate-900 via-slate-800 to-indigo-950 text-white;
+}
+
+.gradient-primary-dark {
+  @apply bg-gradient-to-tr from-slate-950 via-slate-900 to-slate-950 text-white;
+}
+
+.gradient-accent {
+  @apply bg-gradient-to-r from-emerald-500 to-teal-600 text-white;
+}
+
+/* Form Inputs */
+.input-field {
+  @apply w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 text-slate-800 dark:text-slate-100 placeholder-slate-400;
+}
+
+.label-title {
+  @apply text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block;
+}
+
+/* Modern Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 dark:bg-slate-800 rounded-full hover:bg-slate-300 dark:hover:bg-slate-700;
+}
+
+/* Quick Animations */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.02); }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s infinite ease-in-out;
+}
