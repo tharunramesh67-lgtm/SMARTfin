@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, LogIn, Chrome, AlertCircle } from 'lucide-react';
+import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -27,16 +27,6 @@ export default function LoginPage() {
       setError(err.message || 'Failed to sign in. Check your credentials.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      setError('');
-      const { error: googleError } = await signInWithGoogle();
-      if (googleError) throw googleError;
-    } catch (err) {
-      setError(err.message || 'Google authentication failed.');
     }
   };
 
@@ -100,20 +90,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="relative flex py-2 items-center">
-          <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-          <span className="flex-shrink mx-4 text-xs font-bold uppercase tracking-wider text-slate-400">Or continue with</span>
-          <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-        </div>
-
-        <button
-          onClick={handleGoogleLogin}
-          className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl text-sm font-bold border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
-        >
-          <Chrome className="w-4 h-4 text-emerald-500" />
-          Google Authentication
-        </button>
-
         <div className="text-center text-sm text-slate-500 dark:text-slate-400">
           New to FinCalc?{' '}
           <Link to="/signup" className="text-emerald-500 hover:underline font-bold">
@@ -124,3 +100,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

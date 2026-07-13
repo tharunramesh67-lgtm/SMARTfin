@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import History from './pages/History';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import Profile from './pages/Profile';
 
 import Navbar from './components/Navbar';
 
@@ -51,6 +52,7 @@ function MainAppContent() {
           <Route path="/tracker" element={<Tracker />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/history" element={<History />} />
+          <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
           <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
           <Route path="/signup" element={user ? <Navigate to="/" /> : <SignupPage />} />
           <Route path="*" element={<Navigate to="/" />} />

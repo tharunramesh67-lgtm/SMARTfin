@@ -4,6 +4,13 @@ import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Landmark, IndianRupee, Save, Info, RefreshCw, Calendar, TrendingUp, Sparkles, AlertCircle, HelpCircle } from 'lucide-react';
 
+const formatINR = (value, fractionDigits = 0) => {
+  return (value || 0).toLocaleString('en-IN', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
+  });
+};
+
 export default function Calculators() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('emi'); // emi, sip, compound, simple, amortization, retirement
@@ -101,174 +108,398 @@ export default function Calculators() {
 // 1. EMI CALCULATOR COMPONENT WITH RANGE SLIDERS
 // -------------------------------------------------------------
 function EMICalculator({ onSave, user }) {
-  const [loanAmount, setLoanAmount] = useState(1000000);
+  const [loanType, setLoanType] = useState('home'); // home, personal, car
+  const [loanAmount, setLoanAmount] = useState(5000000);
   const [interestRate, setInterestRate] = useState(8.5);
-  const [tenureYears, setTenureYears] = useState(20);
+  const [tenure, setTenure] = useState(20);
+  const [tenureType, setTenureType] = useState('yr'); // yr, mo
+
+  const configs = {
+    home: {
+      label: 'Home Loan',
+      defaultAmount: 5000000,
+      minAmount: 0,
+      maxAmount: 20000000, // 2 Cr
+      stepAmount: 100000,
+      defaultRate: 8.5,
+      minRate: 5,
+      maxRate: 20,
+      stepRate: 0.1,
+      defaultTenure: 20,
+      maxTenureYr: 30,
+      amountTicks: [
+        { label: '0', value: 0 },
+        { label: '50L', value: 5000000 },
+        { label: '1Cr', value: 10000000 },
+        { label: '1.5Cr', value: 15000000 },
+        { label: '2Cr', value: 20000000 }
+      ]
+    },
+    personal: {
+      label: 'Personal Loan',
+      defaultAmount: 500000,
+      minAmount: 0,
+      maxAmount: 4000000, // 40L
+      stepAmount: 10000,
+      defaultRate: 12.0,
+      minRate: 5,
+      maxRate: 20,
+      stepRate: 0.1,
+      defaultTenure: 3,
+      maxTenureYr: 7,
+      amountTicks: [
+        { label: '0', value: 0 },
+        { label: '10L', value: 1000000 },
+        { label: '20L', value: 2000000 },
+        { label: '30L', value: 3000000 },
+        { label: '40L', value: 4000000 }
+      ]
+    },
+    car: {
+      label: 'Car Loan',
+      defaultAmount: 400000,
+      minAmount: 0,
+      maxAmount: 2000000, // 20L
+      stepAmount: 10000,
+      defaultRate: 8.5,
+      minRate: 5,
+      maxRate: 20,
+      stepRate: 0.1,
+      defaultTenure: 5,
+      maxTenureYr: 7,
+      amountTicks: [
+        { label: '0', value: 0 },
+        { label: '5L', value: 500000 },
+        { label: '10L', value: 1000000 },
+        { label: '15L', value: 1500000 },
+        { label: '20L', value: 2000000 }
+      ]
+    }
+  };
+
+  const handleTabChange = (type) => {
+    setLoanType(type);
+    const config = configs[type];
+    setLoanAmount(config.defaultAmount);
+    setInterestRate(config.defaultRate);
+    if (tenureType === 'yr') {
+      setTenure(config.defaultTenure);
+    } else {
+      setTenure(config.defaultTenure * 12);
+    }
+  };
+
+  const handleTenureTypeChange = (type) => {
+    if (type === tenureType) return;
+    setTenureType(type);
+    if (type === 'yr') {
+      setTenure(Math.max(1, Math.round(tenure / 12)));
+    } else {
+      setTenure(tenure * 12);
+    }
+  };
+
+  const currentConfig = configs[loanType];
+  const maxTenure = tenureType === 'yr' ? currentConfig.maxTenureYr : currentConfig.maxTenureYr * 12;
+  const minTenure = 0;
 
   const P = parseFloat(loanAmount) || 0;
   const R = (parseFloat(interestRate) || 0) / 12 / 100;
-  const N = (parseInt(tenureYears) || 0) * 12;
+  const N = tenureType === 'yr' ? (parseInt(tenure) || 0) * 12 : (parseInt(tenure) || 0);
 
   let emi = 0;
+  let exactEmi = 0;
   if (P > 0 && R > 0 && N > 0) {
-    emi = Math.round((P * R * Math.pow(1 + R, N)) / (Math.pow(1 + R, N) - 1));
+    exactEmi = (P * R * Math.pow(1 + R, N)) / (Math.pow(1 + R, N) - 1);
+    emi = Math.round(exactEmi);
   } else if (P > 0 && N > 0) {
-    emi = Math.round(P / N);
+    exactEmi = P / N;
+    emi = Math.round(exactEmi);
   }
 
-  const totalPayment = emi * N;
-  const totalInterest = totalPayment - P;
+  const totalPayment = exactEmi * N;
+  const totalInterest = Math.max(0, totalPayment - P);
 
   const chartData = [
     { name: 'Principal Amount', value: P, color: '#10b981' },
     { name: 'Total Interest', value: totalInterest > 0 ? totalInterest : 0, color: '#6366f1' }
   ];
 
+  // Generate ticks for Rate
+  const rateTicks = [5, 7.5, 10, 12.5, 15, 17.5, 20];
+
+  // Generate ticks for Tenure
+  const tenureTicks = [];
+  if (tenureType === 'yr') {
+    for (let i = 0; i <= currentConfig.maxTenureYr; i += (currentConfig.maxTenureYr === 30 ? 5 : 1)) {
+      tenureTicks.push(i);
+    }
+  } else {
+    for (let i = 0; i <= currentConfig.maxTenureYr * 12; i += (currentConfig.maxTenureYr === 30 ? 60 : 12)) {
+      tenureTicks.push(i);
+    }
+  }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      <div className="lg:col-span-7 space-y-6">
-        <div>
-          <h3 className="text-xl font-bold flex items-center gap-2">
-            <Landmark className="w-5 h-5 text-emerald-500" />
-            Equated Monthly Installment (EMI)
-          </h3>
-          <p className="text-xs text-slate-400 mt-1">Compute monthly installment outlays for housing, auto, or personal loans.</p>
-        </div>
-        
-        <div className="space-y-6">
-          {/* Loan Amount */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="label-title mb-0">Loan Amount (₹)</label>
-              <span className="text-sm font-bold text-emerald-500">₹{P.toLocaleString()}</span>
-            </div>
-            <input
-              type="number"
-              value={loanAmount}
-              onChange={(e) => setLoanAmount(e.target.value)}
-              className="input-field"
-            />
-            <input
-              type="range"
-              min="10000"
-              max="10000000"
-              step="10000"
-              value={loanAmount}
-              onChange={(e) => setLoanAmount(e.target.value)}
-              className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none"
-            />
-          </div>
-
-          {/* Interest Rate */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="label-title mb-0">Interest Rate (% P.A.)</label>
-              <span className="text-sm font-bold text-indigo-500">{interestRate}%</span>
-            </div>
-            <input
-              type="number"
-              step="0.01"
-              value={interestRate}
-              onChange={(e) => setInterestRate(e.target.value)}
-              className="input-field"
-            />
-            <input
-              type="range"
-              min="1"
-              max="25"
-              step="0.1"
-              value={interestRate}
-              onChange={(e) => setInterestRate(e.target.value)}
-              className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none"
-            />
-          </div>
-
-          {/* Tenure */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="label-title mb-0">Loan Tenure (Years)</label>
-              <span className="text-sm font-bold text-amber-500">{tenureYears} Years</span>
-            </div>
-            <input
-              type="number"
-              value={tenureYears}
-              onChange={(e) => setTenureYears(e.target.value)}
-              className="input-field"
-            />
-            <input
-              type="range"
-              min="1"
-              max="40"
-              step="1"
-              value={tenureYears}
-              onChange={(e) => setTenureYears(e.target.value)}
-              className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none"
-            />
-          </div>
-        </div>
-
-        {user ? (
+    <div className="space-y-6">
+      {/* Sub-Tabs */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800">
+        {Object.keys(configs).map((key) => (
           <button
-            onClick={() => onSave('emi', { loanAmount, interestRate, tenureYears }, { emi, totalPayment, totalInterest })}
-            className="flex items-center justify-center gap-1.5 w-full py-3 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-xs font-bold hover:opacity-90 active:scale-[0.98] transition-all"
+            key={key}
+            onClick={() => handleTabChange(key)}
+            className={`px-6 py-3 text-sm font-extrabold border-t-2 border-x border-b transition-all rounded-t-xl -mb-[1px] ${
+              loanType === key
+                ? 'bg-white dark:bg-slate-900 border-t-emerald-500 border-x-slate-200 dark:border-x-slate-850 border-b-transparent text-slate-800 dark:text-slate-100'
+                : 'bg-slate-50 dark:bg-slate-950 border-transparent border-b-slate-200 dark:border-b-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+            }`}
           >
-            <Save className="w-3.5 h-3.5" />
-            Save Calculation
+            {configs[key].label}
           </button>
-        ) : (
-          <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200/50 dark:border-slate-800/80">
-            <HelpCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-            <span>You are currently in Guest Mode. Log in to save calculations permanently.</span>
-          </div>
-        )}
+        ))}
       </div>
 
-      {/* Results View */}
-      <div className="lg:col-span-5 flex flex-col items-center justify-center space-y-6 bg-slate-50 dark:bg-slate-950/40 p-6 rounded-2xl border border-slate-200/40 dark:border-slate-800/40">
-        <div className="grid grid-cols-2 gap-4 w-full">
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Monthly EMI</span>
-            <div className="text-2xl font-black text-emerald-500 mt-1">₹{emi.toLocaleString()}</div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-7 space-y-6">
+          
+          {/* Inputs Section */}
+          <div className="space-y-12">
+            
+            {/* Loan Amount */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-sm font-bold text-slate-600 dark:text-slate-400">
+                  {currentConfig.label} Amount
+                </label>
+                <div className="flex items-center border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900 max-w-[200px]">
+                  <input
+                    type="number"
+                    min={currentConfig.minAmount}
+                    max={currentConfig.maxAmount}
+                    value={loanAmount}
+                    onChange={(e) => setLoanAmount(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-1.5 text-right font-bold text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none text-sm"
+                  />
+                  <span className="bg-slate-100 dark:bg-slate-800 px-3.5 py-1.5 border-l border-slate-200 dark:border-slate-700 text-slate-500 font-bold text-sm">₹</span>
+                </div>
+              </div>
+              
+              <div className="relative pb-6">
+                <input
+                  type="range"
+                  min={currentConfig.minAmount}
+                  max={currentConfig.maxAmount}
+                  step={currentConfig.stepAmount}
+                  value={loanAmount}
+                  onChange={(e) => setLoanAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full accent-orange-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none"
+                />
+                <div className="absolute w-full left-0 mt-1">
+                  {currentConfig.amountTicks.map((tick) => {
+                    const pct = (tick.value / currentConfig.maxAmount) * 100;
+                    return (
+                      <div
+                        key={tick.label}
+                        className="absolute -translate-x-1/2 flex flex-col items-center cursor-pointer group"
+                        style={{ left: `${pct}%` }}
+                        onClick={() => setLoanAmount(tick.value)}
+                      >
+                        <div className="w-[1.5px] h-1.5 bg-slate-350 dark:bg-slate-700 group-hover:bg-orange-500 transition-colors" />
+                        <span className="text-[10px] text-slate-400 font-extrabold mt-1 group-hover:text-orange-500 transition-colors">
+                          {tick.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Interest Rate */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-sm font-bold text-slate-600 dark:text-slate-400">Interest Rate</label>
+                <div className="flex items-center border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900 max-w-[200px]">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={currentConfig.minRate}
+                    max={currentConfig.maxRate}
+                    value={interestRate}
+                    onChange={(e) => setInterestRate(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-1.5 text-right font-bold text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none text-sm"
+                  />
+                  <span className="bg-slate-100 dark:bg-slate-800 px-3.5 py-1.5 border-l border-slate-200 dark:border-slate-700 text-slate-500 font-bold text-sm">%</span>
+                </div>
+              </div>
+
+              <div className="relative pb-6">
+                <input
+                  type="range"
+                  min={currentConfig.minRate}
+                  max={currentConfig.maxRate}
+                  step={currentConfig.stepRate}
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(parseFloat(e.target.value) || 0)}
+                  className="w-full accent-orange-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none"
+                />
+                <div className="absolute w-full left-0 mt-1">
+                  {rateTicks.map((tick) => {
+                    const pct = ((tick - 5) / (20 - 5)) * 100;
+                    return (
+                      <div
+                        key={tick}
+                        className="absolute -translate-x-1/2 flex flex-col items-center cursor-pointer group"
+                        style={{ left: `${pct}%` }}
+                        onClick={() => setInterestRate(tick)}
+                      >
+                        <div className="w-[1.5px] h-1.5 bg-slate-350 dark:bg-slate-700 group-hover:bg-orange-500 transition-colors" />
+                        <span className="text-[10px] text-slate-400 font-extrabold mt-1 group-hover:text-orange-500 transition-colors">
+                          {tick}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Loan Tenure */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-sm font-bold text-slate-600 dark:text-slate-400">Loan Tenure</label>
+                <div className="flex items-center border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900 max-w-[200px]">
+                  <input
+                    type="number"
+                    min={minTenure}
+                    max={maxTenure}
+                    value={tenure}
+                    onChange={(e) => setTenure(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-1.5 text-right font-bold text-slate-800 dark:text-slate-100 bg-transparent focus:outline-none text-sm"
+                  />
+                  <div className="flex border-l border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => handleTenureTypeChange('yr')}
+                      className={`px-3 py-1.5 text-[10px] font-extrabold transition-colors ${
+                        tenureType === 'yr'
+                          ? 'bg-slate-100 dark:bg-slate-800 text-orange-500'
+                          : 'bg-transparent text-slate-400 hover:text-slate-600'
+                      }`}
+                    >
+                      Yr
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTenureTypeChange('mo')}
+                      className={`px-3 py-1.5 text-[10px] font-extrabold border-l border-slate-200 dark:border-slate-700/50 transition-colors ${
+                        tenureType === 'mo'
+                          ? 'bg-slate-100 dark:bg-slate-800 text-orange-500'
+                          : 'bg-transparent text-slate-400 hover:text-slate-600'
+                      }`}
+                    >
+                      Mo
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative pb-6">
+                <input
+                  type="range"
+                  min={minTenure}
+                  max={maxTenure}
+                  step={1}
+                  value={tenure}
+                  onChange={(e) => setTenure(parseInt(e.target.value) || 0)}
+                  className="w-full accent-orange-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none"
+                />
+                <div className="absolute w-full left-0 mt-1">
+                  {tenureTicks.map((tick) => {
+                    const pct = (tick / maxTenure) * 100;
+                    return (
+                      <div
+                        key={tick}
+                        className="absolute -translate-x-1/2 flex flex-col items-center cursor-pointer group"
+                        style={{ left: `${pct}%` }}
+                        onClick={() => setTenure(tick)}
+                      >
+                        <div className="w-[1.5px] h-1.5 bg-slate-350 dark:bg-slate-700 group-hover:bg-orange-500 transition-colors" />
+                        <span className="text-[10px] text-slate-400 font-extrabold mt-1 group-hover:text-orange-500 transition-colors">
+                          {tick}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
           </div>
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Total Interest</span>
-            <div className="text-2xl font-black text-indigo-500 mt-1">₹{Math.round(totalInterest).toLocaleString()}</div>
-          </div>
+
+          {user ? (
+            <button
+              onClick={() => onSave('emi', { loanAmount, interestRate, tenure, tenureType, loanType }, { emi, totalPayment, totalInterest })}
+              className="flex items-center justify-center gap-1.5 w-full py-3 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-xs font-bold hover:opacity-90 active:scale-[0.98] transition-all"
+            >
+              <Save className="w-3.5 h-3.5" />
+              Save Calculation
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200/50 dark:border-slate-800/80">
+              <HelpCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+              <span>You are currently in Guest Mode. Log in to save calculations permanently.</span>
+            </div>
+          )}
         </div>
 
-        <div className="w-full h-56 relative flex items-center justify-center">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={55}
-                outerRadius={75}
-                paddingAngle={4}
-                dataKey="value"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => `₹${Math.round(value).toLocaleString()}`} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute flex flex-col items-center justify-center">
-            <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Total Payment</span>
-            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">₹{Math.round(totalPayment).toLocaleString()}</span>
+        {/* Results View */}
+        <div className="lg:col-span-5 flex flex-col items-center justify-center space-y-6 bg-slate-50 dark:bg-slate-950/40 p-6 rounded-2xl border border-slate-200/40 dark:border-slate-800/40 animate-in fade-in duration-300">
+          <div className="grid grid-cols-2 gap-4 w-full">
+            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Monthly EMI</span>
+              <div className="text-2xl font-black text-emerald-500 mt-1">₹{formatINR(exactEmi, 2)}</div>
+            </div>
+            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Total Interest</span>
+              <div className="text-2xl font-black text-indigo-500 mt-1">₹{formatINR(totalInterest)}</div>
+            </div>
           </div>
-        </div>
 
-        <div className="flex gap-4 text-xs font-bold w-full justify-center">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-emerald-500" />
-            <span>Principal</span>
+          <div className="w-full h-56 relative flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={75}
+                  paddingAngle={4}
+                  dataKey="value"
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `₹${formatINR(value)}`} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute flex flex-col items-center justify-center">
+              <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Total Payment</span>
+              <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">₹{formatINR(totalPayment)}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-indigo-500" />
-            <span>Interest</span>
+
+          <div className="flex gap-4 text-xs font-bold w-full justify-center">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span>Principal</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-indigo-500" />
+              <span>Interest</span>
+            </div>
           </div>
         </div>
       </div>
@@ -317,7 +548,7 @@ function SIPCalculator({ onSave, user }) {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <label className="label-title mb-0">Monthly Investment (₹)</label>
-              <span className="text-sm font-bold text-emerald-500">₹{P.toLocaleString()}</span>
+              <span className="text-sm font-bold text-emerald-500">₹{formatINR(P)}</span>
             </div>
             <input
               type="number"
@@ -393,15 +624,15 @@ function SIPCalculator({ onSave, user }) {
         )}
       </div>
 
-      <div className="lg:col-span-5 flex flex-col items-center justify-center space-y-6 bg-slate-50 dark:bg-slate-950/40 p-6 rounded-2xl border border-slate-200/40 dark:border-slate-800/40">
+      <div className="lg:col-span-5 flex flex-col items-center justify-center space-y-6 bg-slate-50 dark:bg-slate-950/40 p-6 rounded-2xl border border-slate-200/40 dark:border-slate-850/40 animate-in fade-in duration-350">
         <div className="grid grid-cols-2 gap-4 w-full">
           <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Invested Capital</span>
-            <div className="text-2xl font-black text-emerald-500 mt-1">₹{investedAmount.toLocaleString()}</div>
+            <div className="text-2xl font-black text-emerald-500 mt-1">₹{formatINR(investedAmount)}</div>
           </div>
           <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Estimated Returns</span>
-            <div className="text-2xl font-black text-amber-500 mt-1">₹{Math.round(estReturns).toLocaleString()}</div>
+            <div className="text-2xl font-black text-amber-500 mt-1">₹{formatINR(estReturns)}</div>
           </div>
         </div>
 
@@ -421,12 +652,12 @@ function SIPCalculator({ onSave, user }) {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => `₹${Math.round(value).toLocaleString()}`} />
+              <Tooltip formatter={(value) => `₹${formatINR(value)}`} />
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute flex flex-col items-center justify-center">
             <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Maturity Wealth</span>
-            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">₹{Math.round(totalWealth).toLocaleString()}</span>
+            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">₹{formatINR(totalWealth)}</span>
           </div>
         </div>
 
@@ -535,11 +766,11 @@ function CompoundInterestCalculator({ onSave, user }) {
         <div className="grid grid-cols-2 gap-4 w-full">
           <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Initial Principal</span>
-            <div className="text-2xl font-black text-emerald-500 mt-1">₹{P.toLocaleString()}</div>
+            <div className="text-2xl font-black text-emerald-500 mt-1">₹{formatINR(P)}</div>
           </div>
           <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Interest Earned</span>
-            <div className="text-2xl font-black text-blue-500 mt-1">₹{Math.round(interestEarned).toLocaleString()}</div>
+            <div className="text-2xl font-black text-blue-500 mt-1">₹{formatINR(interestEarned)}</div>
           </div>
         </div>
 
@@ -559,12 +790,12 @@ function CompoundInterestCalculator({ onSave, user }) {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => `₹${Math.round(value).toLocaleString()}`} />
+              <Tooltip formatter={(value) => `₹${formatINR(value)}`} />
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute flex flex-col items-center justify-center">
             <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Total Yield</span>
-            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">₹{finalAmount.toLocaleString()}</span>
+            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">₹{formatINR(finalAmount)}</span>
           </div>
         </div>
       </div>
@@ -649,11 +880,11 @@ function SimpleInterestCalculator({ onSave, user }) {
         <div className="grid grid-cols-2 gap-4 w-full">
           <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Initial Principal</span>
-            <div className="text-2xl font-black text-emerald-500 mt-1">₹{P.toLocaleString()}</div>
+            <div className="text-2xl font-black text-emerald-500 mt-1">₹{formatINR(P)}</div>
           </div>
           <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Maturity Value</span>
-            <div className="text-2xl font-black text-pink-500 mt-1">₹{totalAmount.toLocaleString()}</div>
+            <div className="text-2xl font-black text-pink-500 mt-1">₹{formatINR(totalAmount)}</div>
           </div>
         </div>
 
@@ -673,12 +904,12 @@ function SimpleInterestCalculator({ onSave, user }) {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => `₹${Math.round(value).toLocaleString()}`} />
+              <Tooltip formatter={(value) => `₹${formatINR(value)}`} />
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute flex flex-col items-center justify-center">
             <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Interest Earned</span>
-            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">₹{interestEarned.toLocaleString()}</span>
+            <span className="text-sm font-extrabold text-slate-800 dark:text-slate-100">₹{formatINR(interestEarned)}</span>
           </div>
         </div>
       </div>
@@ -787,7 +1018,7 @@ function LoanAmortizationCalculator({ onSave, user }) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" name="Year" />
               <YAxis />
-              <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
+              <Tooltip formatter={(value) => `₹${formatINR(value)}`} />
               <Area type="monotone" dataKey="endingBalance" stroke="#10b981" fill="#10b981" fillOpacity={0.1} name="Ending Balance" />
             </AreaChart>
           </ResponsiveContainer>
@@ -808,9 +1039,9 @@ function LoanAmortizationCalculator({ onSave, user }) {
             {schedule.map((row) => (
               <tr key={row.year} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20">
                 <td className="px-6 py-4 font-semibold">Year {row.year}</td>
-                <td className="px-6 py-4 text-right text-slate-600 dark:text-slate-300">₹{row.principalPaid.toLocaleString()}</td>
-                <td className="px-6 py-4 text-right text-slate-600 dark:text-slate-300 font-medium">₹{row.interestPaid.toLocaleString()}</td>
-                <td className="px-6 py-4 text-right text-emerald-500 font-extrabold">₹{row.endingBalance.toLocaleString()}</td>
+                <td className="px-6 py-4 text-right text-slate-600 dark:text-slate-300">₹{formatINR(row.principalPaid)}</td>
+                <td className="px-6 py-4 text-right text-slate-600 dark:text-slate-300 font-medium">₹{formatINR(row.interestPaid)}</td>
+                <td className="px-6 py-4 text-right text-emerald-500 font-extrabold">₹{formatINR(row.endingBalance)}</td>
               </tr>
             ))}
           </tbody>
@@ -841,10 +1072,14 @@ function RetirementGoalPlanner({ onSave, user }) {
   const totalMonths = t * 12;
   
   let requiredMonthlySIP = 0;
-  if (requiredAdditionalTarget > 0 && monthlyRate > 0 && totalMonths > 0) {
-    requiredMonthlySIP = Math.round(
-      requiredAdditionalTarget * (monthlyRate / (Math.pow(1 + monthlyRate, totalMonths) - 1))
-    );
+  if (requiredAdditionalTarget > 0 && totalMonths > 0) {
+    if (monthlyRate > 0) {
+      requiredMonthlySIP = Math.round(
+        requiredAdditionalTarget * (monthlyRate / (Math.pow(1 + monthlyRate, totalMonths) - 1))
+      );
+    } else {
+      requiredMonthlySIP = Math.round(requiredAdditionalTarget / totalMonths);
+    }
   }
 
   const chartData = [
@@ -918,11 +1153,11 @@ function RetirementGoalPlanner({ onSave, user }) {
         <div className="grid grid-cols-2 gap-4 w-full">
           <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Required Monthly SIP</span>
-            <div className="text-2xl font-black text-emerald-500 mt-1">₹{requiredMonthlySIP.toLocaleString()}</div>
+            <div className="text-2xl font-black text-emerald-500 mt-1">₹{formatINR(requiredMonthlySIP)}</div>
           </div>
           <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/40 dark:border-slate-850 rounded-xl text-center shadow-sm">
             <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Savings Future Value</span>
-            <div className="text-2xl font-black text-indigo-500 mt-1">₹{Math.round(fvOfInitial).toLocaleString()}</div>
+            <div className="text-2xl font-black text-indigo-500 mt-1">₹{formatINR(fvOfInitial)}</div>
           </div>
         </div>
 
@@ -942,7 +1177,7 @@ function RetirementGoalPlanner({ onSave, user }) {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => `₹${Math.round(value).toLocaleString()}`} />
+              <Tooltip formatter={(value) => `₹${formatINR(value)}`} />
             </PieChart>
           </ResponsiveContainer>
         </div>

@@ -9,6 +9,11 @@ CREATE TABLE IF NOT EXISTS profiles (
 -- Enable RLS for profiles
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist to avoid migration errors
+DROP POLICY IF EXISTS "Users can view their own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON profiles;
+
 CREATE POLICY "Users can view their own profile" ON profiles 
   FOR SELECT USING (auth.uid() = id);
 
@@ -36,8 +41,11 @@ CREATE TRIGGER on_auth_user_created
 
 
 -- 2. TRANSACTIONS Table
+DROP TABLE IF EXISTS transactions CASCADE;
+
 CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
   user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
   type TEXT CHECK (type IN ('income', 'expense')) NOT NULL,
   category TEXT NOT NULL,
@@ -49,6 +57,11 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 -- Enable RLS for transactions
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own transactions" ON transactions;
+DROP POLICY IF EXISTS "Users can insert their own transactions" ON transactions;
+DROP POLICY IF EXISTS "Users can update their own transactions" ON transactions;
+DROP POLICY IF EXISTS "Users can delete their own transactions" ON transactions;
 
 CREATE POLICY "Users can view their own transactions" ON transactions 
   FOR SELECT USING (auth.uid() = user_id);
@@ -75,6 +88,10 @@ CREATE TABLE IF NOT EXISTS calculations (
 
 -- Enable RLS for calculations
 ALTER TABLE calculations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own calculations" ON calculations;
+DROP POLICY IF EXISTS "Users can insert their own calculations" ON calculations;
+DROP POLICY IF EXISTS "Users can delete their own calculations" ON calculations;
 
 CREATE POLICY "Users can view their own calculations" ON calculations 
   FOR SELECT USING (auth.uid() = user_id);
